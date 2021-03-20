@@ -2,8 +2,7 @@ const channels: { [key: string]: boolean } = {},
       pipes: { [key: string]: Function[] } = {},
       localStorage_name                    = 'CometServerUUID';
 
-let socket: WebSocket,
-    reconnect_timeout: number = 0;
+let socket: WebSocket;
 
 let uuid = localStorage.getItem(localStorage_name);
 if (!uuid) {
@@ -42,18 +41,11 @@ const json_parse_data = (json: string): {} | string => {
 	}
 }
 
-const reconect = () => {
-	if (socket && socket.readyState === WebSocket.CLOSED) connect();
-	reconnect_timeout = setTimeout(reconect, 1000);
-}
-
 let socket_url = ``;
 const connect = () => {
 	socket = new WebSocket(socket_url);
 	socket.onopen = () => {
 		for (const channel of Object.keys(channels)) subscribe(channel);
-		//console.log(socket, socket.readyState, socket.readyState === WebSocket.CLOSED)
-		//reconect();
 	};
 
 	socket.onmessage = e => {
@@ -75,9 +67,8 @@ const connect = () => {
 	};
 
 	socket.onclose = e => {
-		console.error(`Comet [onclose]`, e)
-		clearTimeout(reconnect_timeout);
-		//connect();
+		console.error(`Comet [onclose]`, e);
+		setTimeout(() => connect(), 1000);
 	};
 
 	socket.onerror = e => {
