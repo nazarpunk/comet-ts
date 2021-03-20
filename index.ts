@@ -28,9 +28,17 @@ interface CometResponse {
 	error?: string
 }
 
-const json_parse = (json: string): CometResponse | string => {
+const json_parse_message = (json: string): CometResponse | string => {
 	try {return JSON.parse(json);} catch (e) {
 		return json;
+	}
+}
+
+const json_parse_data = (json: string): {} | string => {
+	try {return JSON.parse(json);} catch (e) {
+		try {return JSON.parse(json.replace(/\\"/g, `"`));} catch (e) {
+			return json;
+		}
 	}
 }
 
@@ -38,7 +46,6 @@ const reconect = () => {
 	if (socket && socket.readyState === WebSocket.CLOSED) connect();
 	reconnect_timeout = setTimeout(reconect, 1000);
 }
-
 
 let socket_url = ``;
 const connect = () => {
@@ -50,7 +57,7 @@ const connect = () => {
 	};
 
 	socket.onmessage = e => {
-		const message = json_parse(e.data.replace(/\\\\\\'/g, `'`).replace(/\s+/g, ' ').trim());
+		const message = json_parse_message(e.data.replace(/\\\\\\'/g, `'`).replace(/\s+/g, ' ').trim());
 
 		if (typeof message === `string` ||
 		    (message.hasOwnProperty(`error`) && message.event_name === `CometServerError`)
@@ -61,7 +68,7 @@ const connect = () => {
 		const pipe       = message.hasOwnProperty(`SendToUser`) && message.SendToUser ? `private` : message.pipe,
 		      event      = message.event_name,
 		      event_name = `${pipe}|${event}`,
-		      data       = json_parse(message.data) || {};
+		      data       = json_parse_data(message.data);
 
 		if (!pipes.hasOwnProperty(event_name)) return;
 		for (const cb of pipes[event_name]) cb(data);
@@ -88,7 +95,6 @@ const CometConnect = (
 	v: string   = `4.09`
 ) => {
 	socket_url = `wss://${domain}/comet-server/ws/sesion=${session}&myid=${myid}&devid=${devid}&v=${v}&uuid=${uuid}&api=${api}`;
-	console.dir(socket_url);
 	connect();
 }
 
