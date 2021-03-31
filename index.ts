@@ -3,6 +3,7 @@ const channels: { [key: string]: boolean } = {},
       localStorage_name                    = 'CometServerUUID';
 
 let socket: WebSocket;
+let is_debug: boolean = false;
 
 let uuid = localStorage.getItem(localStorage_name);
 if (!uuid) {
@@ -32,10 +33,26 @@ const json_parse_message = (json: string): CometResponse | string => {
 		return json;
 	}
 }
+const json_parse_data_format = (obj: any) => {
+	for (const k in obj) {
+		if (!obj.hasOwnProperty(k)) continue;
+		if (typeof obj[k] == "object" && obj[k] !== null)
+			json_parse_data_format(obj[k]);
+		else {
+			if (typeof obj[k] === `string`) {
+				obj[k] = obj[k].replaceAll(`\\u0022`, `"`);
+			}
+		}
+	}
+}
 
 const json_parse_data = (json: string): {} | string => {
 	try {return JSON.parse(json);} catch (e) {
-		try {return JSON.parse(json.replace(/\\"/g, `"`));} catch (e) {
+		try {
+			const j = JSON.parse(json.replace(/\\+"/g, `"`));
+			json_parse_data_format(j);
+			return j;
+		} catch (e) {
 			return json;
 		}
 	}
@@ -67,12 +84,12 @@ const connect = () => {
 	};
 
 	socket.onclose = e => {
-		console.error(`Comet [onclose]`, e);
+		if (is_debug) console.error(`Comet [onclose]`, e);
 		setTimeout(() => connect(), 1000);
 	};
 
 	socket.onerror = e => {
-		console.error(`Comet [onerror]`, e);
+		if (is_debug) console.error(`Comet [onerror]`, e);
 	}
 }
 
@@ -82,9 +99,11 @@ const CometConnect = (
 	session: string,
 	myid: string,
 	devid: string,
-	api: string = `js`,
-	v: string   = `4.09`
+	api: string    = `js`,
+	v: string      = `4.09`,
+	debug: boolean = false
 ) => {
+	is_debug = debug;
 	socket_url = `wss://${domain}/comet-server/ws/sesion=${session}&myid=${myid}&devid=${devid}&v=${v}&uuid=${uuid}&api=${api}`;
 	connect();
 }
