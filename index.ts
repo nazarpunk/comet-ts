@@ -60,7 +60,12 @@ const json_parse_data = (json: string): {} | string => {
 
 let socket_url = ``;
 const connect = () => {
-	socket = new WebSocket(socket_url);
+	try{
+		socket = new WebSocket(socket_url);
+	} catch (e){
+		throw `Comet: ${e}`;
+	}
+
 	socket.onopen = () => {
 		for (const channel of Object.keys(channels)) subscribe(channel);
 	};
