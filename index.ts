@@ -41,14 +41,16 @@ const json_parse_data_format = (obj: any) => {
 			json_parse_data_format(obj[k]);
 		else {
 			if (typeof obj[k] === `string`) {
-				obj[k] = obj[k].replaceAll(`\\u0022`, `"`);
+				obj[k] = obj[k].replaceAll(`\\u0022`, `"`).replaceAll(`\\u0027`, `'`);
 			}
 		}
 	}
 };
 
 const json_parse_data = (json: string): {} | string => {
-	try {return JSON.parse(json);} catch (e) {
+	try {
+		return JSON.parse(json);
+	} catch (e) {
 		try {
 			const j = JSON.parse(json.replace(/\\+"/g, `"`));
 			json_parse_data_format(j);
@@ -72,7 +74,7 @@ const connect = () => {
 	};
 
 	socket.onmessage = e => {
-		const message = json_parse_message(e.data.replace(/\\\\\\'/g, `'`).replace(/\s+/g, ' ').trim());
+		const message = json_parse_message(e.data.replace(/\+'/g, `'`).replace(/\s+/g, ' ').trim());
 
 		if (
 			typeof message === `string`
