@@ -17,12 +17,13 @@ const subscribe = (channel: string) => {
 	channels[channel] = true;
 	if (socket && socket.readyState === WebSocket.OPEN) socket.send('subscription\n' + channel);
 	else setTimeout(() => subscribe(channel), 300);
-}
+};
 
 interface CometResponse {
 	authorized: boolean,
 	SendToUser?: boolean,
-	event_name: string | 'CometServerError',
+	event: string | 'CometServerError',
+	event_name: string | 'CometServerError', // deprecated
 	data: string,
 	pipe: string,
 	error?: string
@@ -32,7 +33,7 @@ const json_parse_message = (json: string): CometResponse | string => {
 	try {return JSON.parse(json);} catch (e) {
 		return json;
 	}
-}
+};
 const json_parse_data_format = (obj: any) => {
 	for (const k in obj) {
 		if (!obj.hasOwnProperty(k)) continue;
@@ -44,7 +45,7 @@ const json_parse_data_format = (obj: any) => {
 			}
 		}
 	}
-}
+};
 
 const json_parse_data = (json: string): {} | string => {
 	try {return JSON.parse(json);} catch (e) {
@@ -56,13 +57,13 @@ const json_parse_data = (json: string): {} | string => {
 			return json;
 		}
 	}
-}
+};
 
 let socket_url = ``;
 const connect = () => {
-	try{
+	try {
 		socket = new WebSocket(socket_url);
-	} catch (e){
+	} catch (e) {
 		throw `Comet: ${e}`;
 	}
 
@@ -73,14 +74,21 @@ const connect = () => {
 	socket.onmessage = e => {
 		const message = json_parse_message(e.data.replace(/\\\\\\'/g, `'`).replace(/\s+/g, ' ').trim());
 
-		if (typeof message === `string` ||
-		    (message.hasOwnProperty(`error`) && message.event_name === `CometServerError`)
-		) return console.error(`Comet [onmessage]`, message);
+		if (
+			typeof message === `string`
+			||
+			message.hasOwnProperty(`error`)
+			&&
+			message.event_name === `CometServerError`
+		) {
+			console.error(`Comet [onmessage]`, message);
+			return;
+		}
 
 		if (message.hasOwnProperty(`authorized`)) return;
 
 		const pipe       = message.hasOwnProperty(`SendToUser`) && message.SendToUser ? `private` : message.pipe,
-		      event      = message.event_name,
+		      event      = message.event || message.event_name,
 		      event_name = `${pipe}|${event}`,
 		      data       = json_parse_data(message.data);
 
@@ -96,7 +104,7 @@ const connect = () => {
 	socket.onerror = e => {
 		if (is_debug) console.error(`Comet [onerror]`, e);
 	}
-}
+};
 
 // noinspection JSUnusedGlobalSymbols
 const CometConnect = (
@@ -109,9 +117,9 @@ const CometConnect = (
 	debug: boolean = false
 ) => {
 	is_debug = debug;
-	socket_url = `wss://${domain}/comet-server/ws/sesion=${session}&myid=${myid}&devid=${devid}&v=${v}&uuid=${uuid}&api=${api}`;
+	socket_url = `wss://${domain}/sesion=${session}&myid=${myid}&devid=${devid}&v=${v}&uuid=${uuid}&api=${api}`;
 	connect();
-}
+};
 
 // noinspection JSUnusedGlobalSymbols
 const CometEvent = (channel: string, event: string, cb: Function) => {
@@ -121,7 +129,7 @@ const CometEvent = (channel: string, event: string, cb: Function) => {
 	if (!pipes.hasOwnProperty(event_name)) pipes[event_name] = [];
 	for (const e of pipes[event_name]) if (e === cb) return;
 	pipes[event_name].push(cb);
-}
+};
 
 
 export {CometConnect, CometEvent};
